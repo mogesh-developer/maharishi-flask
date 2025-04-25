@@ -1,16 +1,21 @@
 from flask import Flask, render_template, request, redirect, url_for, session
-import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
+import mysql.connector
+import os
+
+# Load environment variables from .env
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'
+app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key')
 
-# Connect to MySQL (XAMPP)
+# Connect to MySQL using env variables
 db = mysql.connector.connect(
-    host='localhost',
-    user='root',
-    password='',
-    database='flask'
+    host=os.environ.get('DB_HOST', 'localhost'),
+    user=os.environ.get('DB_USER', 'root'),
+    password=os.environ.get('DB_PASSWORD', ''),
+    database=os.environ.get('DB_NAME', 'flask')
 )
 
 # -------------------- HOME --------------------
@@ -18,38 +23,31 @@ db = mysql.connector.connect(
 def index():
     return render_template('index.html')
 
-
 @app.route('/login')
 def home():
     return redirect(url_for('login_student'))
 
-# Route for Diploma in Catering and Hotel Management page
+# -------------------- COURSE PAGES --------------------
 @app.route('/course/catering-hotel-management')
 def catering_course():
     return render_template('catering_hotel_management.html')
 
-# Route for Diploma in Nursing and Health Care page
 @app.route('/course/nursing-health-care')
 def nursing_health_care_course():
     return render_template('nursing_health_care.html')
 
-
-# Route for Diploma in Hospital Management (DHM) page
 @app.route('/course/dhm')
 def dhm_course():
     return render_template('dhm.html')
 
-# Route for Diploma in General Duty Nursing Assistant (DGDA) page
 @app.route('/course/dgda')
 def dgda_course():
     return render_template('dgda.html')
 
-# Route for Diploma in X-Ray Technology (DXRT) page
 @app.route('/course/dxrt')
 def dxrt_course():
     return render_template('dxrt.html')
 
-# Route for Diploma in Medical Laboratory Technician Assistant (DMLTA) page
 @app.route('/course/dmlta')
 def dmlta_course():
     return render_template('dmlta.html')
@@ -57,8 +55,6 @@ def dmlta_course():
 @app.route('/dna')
 def dna():
     return render_template('dna.html')
-
-
 
 @app.route('/dhmct')
 def dhmct():
@@ -75,7 +71,6 @@ def dct():
 @app.route('/difp')
 def difp():
     return render_template('difp.html')
-
 
 # -------------------- STUDENT REGISTRATION --------------------
 @app.route('/register/student', methods=['GET', 'POST'])
@@ -120,9 +115,6 @@ def login_student():
     return render_template('login_student.html', msg=msg)
 
 # -------------------- STUDENT DASHBOARD --------------------
-
-
-
 @app.route('/dashboard/student')
 def dashboard_student():
     if 'username' not in session:
@@ -130,22 +122,19 @@ def dashboard_student():
 
     username = session['username']
 
-    # Create a new cursor and fetch all courses
     cursor1 = db.cursor(dictionary=True)
     cursor1.execute("SELECT * FROM courses")
     courses = cursor1.fetchall()
     cursor1.close()
 
-    # Create a new cursor for enrolled courses
     cursor2 = db.cursor(dictionary=True)
     cursor2.execute("SELECT course_id FROM enrollments WHERE student_username = %s", (username,))
     enrolled = cursor2.fetchall()
-    enrolled_course_ids = {e['course_id'] for e in enrolled}
     cursor2.close()
 
-    return render_template('student_dashboard.html', username=username, courses=courses,
-                           enrolled_course_ids=enrolled_course_ids)
+    enrolled_course_ids = {e['course_id'] for e in enrolled}
 
+    return render_template('student_dashboard.html', username=username, courses=courses, enrolled_course_ids=enrolled_course_ids)
 
 # -------------------- COURSE APPLICATION --------------------
 @app.route('/apply/<int:course_id>', methods=['POST'])
@@ -156,7 +145,6 @@ def apply_course(course_id):
     username = session['username']
     cursor = db.cursor()
 
-    # Check if already enrolled
     cursor.execute("SELECT * FROM enrollments WHERE student_username = %s AND course_id = %s", (username, course_id))
     existing = cursor.fetchone()
 
@@ -164,7 +152,6 @@ def apply_course(course_id):
         cursor.close()
         return "<script>alert('You are already enrolled in this course.');window.location.href='/dashboard/student';</script>"
 
-    # Enroll student
     cursor.execute("INSERT INTO enrollments (student_username, course_id) VALUES (%s, %s)", (username, course_id))
     db.commit()
     cursor.close()
@@ -192,7 +179,6 @@ def admin_login():
 
     return render_template('admin_login.html', msg=msg)
 
-
 # -------------------- ADMIN REGISTRATION --------------------
 @app.route('/register/admin', methods=['GET', 'POST'])
 def register_admin():
@@ -213,7 +199,6 @@ def register_admin():
         cursor.close()
 
     return render_template('admin_register.html', msg=msg)
-
 
 # -------------------- ADMIN DASHBOARD --------------------
 @app.route('/dashboard/admin')
@@ -237,7 +222,7 @@ def dashboard_admin():
 
     return render_template('admin_dashboard.html', enrollments=enrollments)
 
-# -------------------- LOGOUTS --------------------
+# -------------------- LOGOUT --------------------
 @app.route('/logout')
 def logout():
     session.clear()
